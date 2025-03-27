@@ -1,17 +1,14 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../app";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { collection, doc, setDoc } from "firebase/firestore";
+import { auth, db } from "../firebaseConfig";
 
-// Define navigation prop types
-type SignupScreenProps = NativeStackScreenProps<RootStackParamList, "Signup">;
-
-const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
+const SignupScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Handle Signup
+  // Signup
   const handleSignup = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
@@ -19,14 +16,25 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     }
 
     try {
-      // Save account status
-      await AsyncStorage.setItem("hasAccount", "true");
-      Alert.alert("Success", "Account created successfully!");
+      // Create user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      // Navigate to Home
-      navigation.replace("Home");
+      // Save user info in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        name: "New User",
+        email: user.email,
+        score: 0,
+        emergencyContact: "",
+        comments: [],
+        createdAt: new Date(),
+      });
+
+      Alert.alert("Success", "Account created successfully!");
+      // Firebase will detect login
     } catch (error) {
-      Alert.alert("Error", "Something went wrong. Please try again.");
+      const errorMessage = (error as Error).message;  // ✅ Now TypeScript understands it's an Error
+      Alert.alert("Signup Failed", errorMessage);
     }
   };
 
@@ -41,6 +49,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        autoCapitalize="none"
       />
 
       {/* Password Input */}

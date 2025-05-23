@@ -1,77 +1,86 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebaseConfig"; 
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../app";
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../app';
+import { ImageBackground } from 'react-native';
 
-// Define navigation props
-type LearnScreenProps = NativeStackScreenProps<RootStackParamList, "Learn">;
+type LearnScreenProps = NativeStackScreenProps<RootStackParamList, 'Learn'>;
+
+const topics = [
+  { id: 'bleeding', title: 'Bleeding' },
+  { id: 'choking', title: 'Choking' },
+  { id: 'burn', title: 'Burns' },
+  { id: 'allergy', title: 'Allergic Reaction' },
+  { id: 'drowning', title: 'Drowning' },
+  { id: 'cardiacemergencies', title: 'Cardiac Emergencies' },
+  { id: "firstaid", title: "First Aid Kit" },
+];
 
 const LearnScreen: React.FC<LearnScreenProps> = ({ navigation }) => {
-  const [categories, setCategories] = useState<{ id: string; title: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch emergency categories from Firestore
-  useEffect(() => {
-    const fetchEmergencyCategories = async () => {
-      setLoading(true);
-      try {
-        const querySnapshot = await getDocs(collection(db, "lessons"));
-        const categoriesData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          title: doc.data().title,
-        }));
-        setCategories(categoriesData);
-      } catch (err) {
-        setError("Failed to load categories. Please try again.");
-        console.error("Error fetching categories:", err);
-      }
-      setLoading(false);
-    };
-
-    fetchEmergencyCategories();
-  }, []);
-
-  // Navigate to Lesson Screen
-  const goToLesson = (topicId: string) => {
-    navigation.navigate("Lesson", { topicId });
-  };
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Select an Emergency to Learn</Text>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#007bff" />
-      ) : error ? (
-        <Text style={styles.error}>{error}</Text>
-      ) : (
-        categories.map((category) => (
-          <TouchableOpacity key={category.id} style={styles.button} onPress={() => goToLesson(category.id)}>
-            <Text style={styles.buttonText}>{category.title}</Text>
-          </TouchableOpacity>
-        ))
-      )}
+    <ImageBackground
+          source={require('../assets/images/backgroundW.png')}
+          style={styles.background}
+          resizeMode="cover"
+        >
+    <ScrollView contentContainerStyle={styles.overlay}>
+      <Text style={styles.header}>⚕ Select an emergency to learn! ⚕</Text>
+      {topics.map((topic) => (
+        <TouchableOpacity
+          key={topic.id}
+          style={styles.topicButton}
+          onPress={() => navigation.navigate('Lesson', { topicId: topic.id })}
+        >
+          <Text style={styles.buttonText}>{topic.title}</Text>
+        </TouchableOpacity>
+      ))}
     </ScrollView>
+    </ImageBackground>
   );
 };
 
 export default LearnScreen;
 
-// Styles
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, alignItems: "center", padding: 20 },
-  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  error: { color: "red", fontSize: 16, marginBottom: 20 },
-  button: {
-    backgroundColor: "#007bff",
-    padding: 15,
-    borderRadius: 10,
-    marginVertical: 10,
-    width: "80%",
-    alignItems: "center",
+  container: {
+    fontFamily: 'Poppins-Italic',
+    padding: 20,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    flexGrow: 1,
+    backgroundColor: "#CAE0BC",
   },
-  buttonText: { fontSize: 18, color: "#fff", fontWeight: "bold" },
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    padding: 20,
+    alignItems: 'center',
+  },
+  header: {
+    fontFamily: 'RobotoSlab-Bold',
+    fontWeight: 'bold',
+    fontSize: 22,
+    marginBottom: 20,
+    color: '#333',
+    textAlign: 'center',
+  },
+  topicButton: {
+    
+    backgroundColor: "#F2B28C",
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    marginBottom: 15,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontFamily: 'Poppins-Bold',
+    color: '#872341',
+    fontSize: 18,
+  },
 });

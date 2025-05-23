@@ -1,28 +1,45 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { collection, doc, setDoc } from "firebase/firestore";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+ Image } from "react-native";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
+import { ImageBackground } from 'react-native';
+
 
 const SignupScreen = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Signup
   const handleSignup = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
+    if (!name || !email || !password) {
+      Alert.alert("Error", "Please fill in all fields.");
       return;
     }
 
     try {
-      // Create user in Firebase Authentication
+      // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Save user info in Firestore
+      // Set Firebase Auth display name
+      await updateProfile(user, {
+        displayName: name,
+      });
+
+      // Store user info in Firestore
       await setDoc(doc(db, "users", user.uid), {
-        name: "New User",
+        name,
         email: user.email,
         score: 0,
         emergencyContact: "",
@@ -31,18 +48,32 @@ const SignupScreen = () => {
       });
 
       Alert.alert("Success", "Account created successfully!");
-      // Firebase will detect login
     } catch (error) {
-      const errorMessage = (error as Error).message;  // ✅ Now TypeScript understands it's an Error
-      Alert.alert("Signup Failed", errorMessage);
+      Alert.alert("Signup Failed", (error as Error).message);
     }
   };
 
   return (
+    <ImageBackground
+      source={require('../assets/images/background2.png')}
+      style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+      >
+        <View style={styles.container}>
+              <Image
+            source={require('../assets/images/icon.png')}
+            style={styles.logo}
+          />
+
     <View style={styles.container}>
       <Text style={styles.title}>Create an Account</Text>
 
-      {/* Email Input */}
+      <TextInput
+        style={styles.input}
+        placeholder="Your Name"
+        value={name}
+        onChangeText={setName}
+      />
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -52,7 +83,6 @@ const SignupScreen = () => {
         autoCapitalize="none"
       />
 
-      {/* Password Input */}
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -61,11 +91,13 @@ const SignupScreen = () => {
         onChangeText={setPassword}
       />
 
-      {/* Signup Button */}
       <TouchableOpacity style={styles.button} onPress={handleSignup}>
         <Text style={styles.buttonText}>Sign Up</Text>
       </TouchableOpacity>
     </View>
+    </View>
+    </ImageBackground>
+
   );
 };
 
@@ -77,13 +109,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#fdfcf5", // subtle beige
     padding: 20,
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontFamily: "Poppins-Bold",
+    marginBottom: 29,
     color: "#333",
   },
   input: {
@@ -97,8 +129,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#fff",
   },
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  logo: {
+    width: 225,
+    height: 225,
+    marginBottom: 5,
+    resizeMode: 'contain',
+    borderRadius: 40,
+  },  
   button: {
-    backgroundColor: "#007bff",
+    backgroundColor: "#28a745", // pastel green
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 8,

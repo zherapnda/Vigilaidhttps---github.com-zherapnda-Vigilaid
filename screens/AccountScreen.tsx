@@ -1,92 +1,205 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../app";
+import {
+  View,
+  Text,
+  TextInput,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { auth, db } from "../firebaseConfig";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { ImageBackground } from 'react-native';
 
-// Define navigation prop types
-type AccountScreenProps = NativeStackScreenProps<RootStackParamList, "Account">;
 
-const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
-  const [userData, setUserData] = useState({
-    name: "John Doe",
-    email: "johndoe@example.com",
-    emergencyContact: "911",
-    profilePic: "https://randomuser.me/api/portraits/men/1.jpg",
-    overallScore: 0,
-    comments: [],
-  });
+const AccountScreen = () => {
+  const [userData, setUserData] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [editedContact, setEditedContact] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // Load User Data from AsyncStorage
   useEffect(() => {
     const loadUserData = async () => {
-      const storedScore = await AsyncStorage.getItem("overallScore");
-      const storedComments = await AsyncStorage.getItem("userComments");
-      const storedContact = await AsyncStorage.getItem("emergencyContact");
+      try {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
 
-      setUserData((prev) => ({
-        ...prev,
-        overallScore: storedScore ? parseInt(storedScore) : 0,
-        comments: storedComments ? JSON.parse(storedComments) : [],
-        emergencyContact: storedContact || "911",
-      }));
+        const userRef = doc(db, "users", uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          setUserData(data);
+          setEditedName(data.name || "");
+          setEditedContact(data.emergencyContact || "");
+        }
+      } catch (error) {
+        Alert.alert("Error", "Failed to load user data.");
+        console.error("Error loading user data:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadUserData();
   }, []);
 
+  const handleSave = async () => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, {
+        name: editedName,
+        emergencyContact: editedContact,
+      });
+
+      setUserData((prev: any) => ({
+        ...prev,
+        name: editedName,
+        emergencyContact: editedContact,
+      }));
+
+      setIsEditing(false);
+      Alert.alert("Success", "Profile updated!");
+    } catch (error) {
+      Alert.alert("Error", "Failed to save changes.");
+      console.error("Error updating profile:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#007bff" />
+      </View>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>No user data found.</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Picture */}
-      <Image source={{ uri: userData.profilePic }} style={styles.profilePic} />
+    <ImageBackground
+              source={require('../assets/images/backgroundL.png')}
+              style={styles.background}
+              resizeMode="cover"
+            >
+    <ScrollView contentContainerStyle={styles.overlay}>
+      <Image source={require('../assets/images/icon.png')} style={styles.profilePic} />
 
-      {/* User Info */}
-      <Text style={styles.name}>{userData.name}</Text>
-      <Text style={styles.email}>{userData.email}</Text>
+      {isEditing ? (
+        <>
+          <TextInput
+            style={styles.input}
+            value={editedName}
+            onChangeText={setEditedName}
+            placeholder="Your Name"
+          />
+          <TextInput
+            style={styles.input}
+            value={editedContact}
+            onChangeText={setEditedContact}
+            placeholder="Emergency Contact"
+            keyboardType="phone-pad"
+          />
+        </>
+      ) : (
+        <>
+          <Text style={styles.name}>{userData.name}</Text>
+          <Text style={styles.email}>{userData.email}</Text>
+        </>
+      )}
 
-      {/* Emergency Contact */}
       <View style={styles.infoBox}>
         <Text style={styles.label}>Emergency Contact:</Text>
         <Text style={styles.value}>{userData.emergencyContact}</Text>
       </View>
 
-      {/* Overall Score */}
       <View style={styles.infoBox}>
         <Text style={styles.label}>Overall Score:</Text>
-        <Text style={styles.value}>{userData.overallScore} pts</Text>
+        <Text style={styles.value}>{userData.score || 0} pts</Text>
       </View>
 
-      {/* User Comments */}
-      <View style={styles.commentsContainer}>
-        <Text style={styles.commentsTitle}>Your Comments:</Text>
-        {userData.comments.length > 0 ? (
-          userData.comments.map((comment, index) => (
-            <Text key={index} style={styles.comment}>
-              - {comment}
-            </Text>
+      <View style={styles.infoBox}>
+        <Text style={styles.label}>Your Comments:</Text>
+        {userData.comments && userData.comments.length > 0 ? (
+          userData.comments.map((comment: string, index: number) => (
+            <Text key={index} style={styles.value}>{comment}</Text>
           ))
         ) : (
-          <Text style={styles.noComments}>No comments yet.</Text>
+          <Text style={styles.value}>No comments available.</Text>
         )}
       </View>
 
-      {/* Edit Profile Button */}
-      <TouchableOpacity style={styles.button} onPress={() => alert("Edit Profile Coming Soon!")}>
-        <Text style={styles.buttonText}>Edit Profile</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={isEditing ? handleSave : () => setIsEditing(true)}
+      >
+        <Text style={styles.buttonText}>{isEditing ? "Save" : "Edit Profile"}</Text>
       </TouchableOpacity>
     </ScrollView>
+  </ImageBackground>
+
   );
 };
 
 export default AccountScreen;
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#FDF8F2",
+  },
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  commentsSection: {
+    width: "90%",
+    marginTop: 20,
+  },
+  commentsTitle: {
+    fontFamily: "Poppins-Bold",
+    fontSize: 20,
+    marginBottom: 10,
+    color: "#007bff",
+  },
+  commentBox: {
+    backgroundColor: "rgba(255, 255, 255, 0.8)", // semi-transparent
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  commentText: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 16,
+    color: "#444",
+  },  
+
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   profilePic: {
     width: 100,
@@ -95,18 +208,30 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   name: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 30,
+    fontFamily: "Poppins-Bold",
+    color: "#123524",
   },
   email: {
-    fontSize: 16,
-    color: "#666",
+    fontFamily: "Poppins-Italic",
+    fontSize: 20,
+    color: "#fff",
     marginBottom: 15,
   },
-  infoBox: {
+  input: {
     width: "90%",
-    backgroundColor: "#fff",
+    padding: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    marginBottom: 10,
+    backgroundColor: "#F6DED8",
+  },
+  infoBox: {
+    fontFamily: "Poppins-Medium",
+    width: "90%",
+    backgroundColor: "#F6DED8",
     padding: 10,
     borderRadius: 8,
     marginBottom: 10,
@@ -117,42 +242,28 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: "Poppins-Medium",
     color: "#555",
   },
   value: {
     fontSize: 16,
     color: "#333",
   },
-  commentsContainer: {
-    width: "90%",
-    marginTop: 15,
-  },
-  commentsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "#333",
-  },
-  comment: {
-    fontSize: 16,
-    color: "#444",
-    marginBottom: 5,
-  },
-  noComments: {
-    fontSize: 16,
-    color: "#888",
-  },
   button: {
-    backgroundColor: "#007bff",
+    backgroundColor: "#B82132",
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 8,
     marginTop: 20,
   },
   buttonText: {
+    fontFamily: "Poppins-Bold",
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "red",
+    marginTop: 50,
   },
 });

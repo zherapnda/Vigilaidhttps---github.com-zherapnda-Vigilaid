@@ -8,6 +8,7 @@ import { User } from "firebase/auth";
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as Font from 'expo-font';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Import Screens
 import HomeScreen from "./screens/HomeScreen";
 import LearnScreen from "./screens/LearnScreen";
@@ -63,7 +64,7 @@ const TabNavigator = () => (
         backgroundColor: '#D2665A',
         borderTopLeftRadius: 1,
         borderTopRightRadius: 1,
-        height: 55,
+        height: 70,
         paddingBottom: 10,
       },
       tabBarLabelStyle: {
@@ -108,6 +109,7 @@ export default function App() {
   }
 
   return (
+   <SafeAreaProvider>
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerStyle: {
       backgroundColor: '#D2665A',
@@ -129,5 +131,6 @@ export default function App() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
